@@ -7,14 +7,13 @@ using Android.Views;
 using Android.Widget;
 using Android.OS;
 using Android.Nfc;
+using System.Text;
 
 namespace nfcActivator
 {
 	[Activity (Label = "nfcActivator", MainLauncher = true)]
 	public class MainActivity : Activity
 	{
-		//int count = 1;
-
 		protected override void OnCreate (Bundle bundle)
 		{
 			base.OnCreate (bundle);
@@ -34,26 +33,34 @@ namespace nfcActivator
 			if (Android.Nfc.NfcAdapter.ActionNdefDiscovered.Equals(Intent.Action)) {
 				var rawMsgs = Intent.GetParcelableArrayExtra(Android.Nfc.NfcAdapter.ExtraNdefMessages);
 				if (rawMsgs != null) {
-					var msgs = new Android.Nfc.NdefMessage[rawMsgs.Length];
-					for (int i = 0; i < rawMsgs.Length; i++) {
-						msgs[i] = (Android.Nfc.NdefMessage) rawMsgs[i];
-					}
 
 					var textView = (TextView)this.FindViewById (Resource.Id.txtNfcData);
-					textView.Text = string.Empty;
+					textView.Text = GetNdefMessageContents (rawMsgs);
 
-					foreach (var msg in msgs) {
-						foreach (var record in msg.GetRecords()) {
-							var bytes = record.GetPayload ();
-							textView.Text += System.Text.Encoding.ASCII.GetString (bytes);
-						}
-					}
+					SetRingerState (Android.Media.RingerMode.Vibrate);
+				}
+			}
+		}
+
+		void SetRingerState (Android.Media.RingerMode newState)
+		{
+			var audioService = (Android.Media.AudioManager)this.GetSystemService (Context.AudioService);
+			audioService.RingerMode = newState;
+		}
+
+		static string GetNdefMessageContents (IParcelable[] msgs)
+		{
+			var displayText = new StringBuilder ();
+			foreach (NdefMessage msg in msgs) {
+				var records = msg.GetRecords ();
+				for (int i = 0; i < records.Length; i++) {
+					var bytes = records [i].GetPayload ();
+					displayText.AppendFormat (" + Record {0}: {1}", i.ToString (), System.Text.Encoding.ASCII.GetString (bytes));
 				}
 			}
 
-
+			return displayText.ToString ();
 		}
-
 	}
 }
 
